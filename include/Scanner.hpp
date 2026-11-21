@@ -5,7 +5,9 @@
 #include <vector>
 #include <filesystem>
 #include <unordered_map>
+#include <map>
 #include <cstdint>
+#include <atomic>
 
 #include "include/Config.hpp"
 
@@ -37,8 +39,9 @@ namespace scanner {
 
     std::vector<FileInfo> list_directory(const config::Config& config);
     std::unordered_map<std::string, ExtStats> list_extensions(const std::vector<FileInfo>& file_infos);
-    size_t count_lines(const fs::path& file_path);
-
+    size_t count_file_lines(const fs::path& file_path);
+    void concurrent_count_lines(std::vector<FileInfo>& files_infos);
+    void worker_task(std::vector<FileInfo>& files_infos, std::atomic<size_t>& next_index);
 
     const std::vector<std::string> excluded_extensions = {
         ".exe", ".dll", ".so", ".dylib", ".bin",
@@ -70,7 +73,7 @@ namespace scanner {
         ".pdb", ".ilk", ".pch"
     };
 
-    inline std::array<char, 1 << 16> buffer{};
+    inline thread_local std::array<char, 1 << 16> buffer{};
 
 }
 

@@ -17,16 +17,17 @@ int main(int argc, char* argv[]) {
     auto start = std::chrono::steady_clock::now();
 
     auto files_info = list_directory(config);
-
-    auto extension_stats = list_extensions(files_info);
-
-    auto number_of_files = files_info.size();
+    concurrent_count_lines(files_info);
 
     auto stop = std::chrono::steady_clock::now();
-
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-    // ----------
+
+    auto extension_stats = list_extensions(files_info);
+    auto number_of_files = files_info.size();
+
+
+    //----------
 
     std::cout << "Number of files: " << number_of_files << "\n";
 
@@ -38,7 +39,7 @@ int main(int argc, char* argv[]) {
             name = "[no name]";
         std::cout << name << " " << extension.second.files << " " << extension.second.lines << "\n";
     }
-    std::cout << "Scan time: " << time.count() << " ms" << "\n";
+    std::cout << "Scan time: " << time1.count() << " ms" << "\n";
 
     return 0;
 }

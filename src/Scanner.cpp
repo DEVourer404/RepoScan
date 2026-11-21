@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <thread>
 
 namespace scanner {
     bool is_skippable(const fs::path &filename, const std::vector<std::string>& excluded_directories) {
@@ -32,25 +33,22 @@ namespace scanner {
         while (it != end) {
             const auto& path = it->path();
             std::error_code st_ec;
-            const auto st = it->status(st_ec);
 
-            if (!st_ec) {
-                if (fs::is_directory(st)) {
-                    if (is_skippable(path.filename(), config.excluded_directories)) {
-                        it.disable_recursion_pending();
-                    }
-                } else if (fs::is_regular_file(st)) {
-                    std::error_code size_ec;
-                    const auto size = it->file_size(size_ec);
-                    if (!size_ec) {
-                        file_infos.push_back({
-                            .path = path,
-                            .file_name = path.filename().string(),
-                            .extension = path.extension().string(),
-                            .size = size,
-                            .lines = 0,
-                        });
-                    }
+            if (it->is_directory(st_ec)) {
+                if (is_skippable(path.filename(), config.excluded_directories)) {
+                    it.disable_recursion_pending();
+                }
+            } else if (!st_ec && it->is_regular_file(st_ec)) {
+                std::error_code size_ec;
+                const auto size = it->file_size(size_ec);
+                if (!size_ec) {
+                    file_infos.push_back({
+                        .path = path,
+                        .file_name = path.filename().string(),
+                        .extension = path.extension().string(),
+                        .size = size,
+                        .lines = 0,
+                    });
                 }
             }
 
@@ -61,20 +59,25 @@ namespace scanner {
             }
         }
 
-        for (auto& info : file_infos) {
-            if (info.size == 0) continue;
-            info.lines = count_lines(info.path);
-        }
         return file_infos;
     }
 
+    void concurrent_count_lines(std::vector<FileInfo>& files_infos) {
+        std::atomic<size_t> next_index{0};
+        unsigned int n = std::thread::hardware_concurrency();
+        std::vector<std::thread> threads;
+        threads.reserve(n);
 
-    std::size_t count_lines(const fs::path &file_path) {
-        // if (!fs::is_regular_file(file_path)) {
-        //     std::cerr << "Path does not exist or is not a regular file: " << file_path << '\n';
-        //     return 0;
-        // }
+        for(unsigned int i = 0; i < n; i++) {
+            threads.emplace_back(worker_task, std::ref(files_infos), std::ref(next_index));
+        }
 
+        for (auto& t : threads) {
+            t.join();
+        }
+    }
+
+    std::size_t count_file_lines(const fs::path &file_path) {
         const auto ext = file_path.extension().string();
         if (std::find(excluded_extensions.begin(), excluded_extensions.end(), ext) != excluded_extensions.end()) {
                 return 0;
@@ -94,14 +97,20 @@ namespace scanner {
                 if (buffer[i] == '\n') count++;
             }
         }
-
-        // std::string current_line;
-        //
-        //  while (std::getline(file, current_line)) {
-        //      ++count;
-        //  }
-
         return count;
+    }
+
+    void worker_task(std::vector<FileInfo>& files_infos, std::atomic<size_t>& next_index) {
+        while (true) {
+            std::size_t i = next_index.fetch_add(1);
+
+            if(i >= files_infos.size())
+                break;
+
+            if(files_infos[i].size > 0) {
+                files_infos[i].lines = count_file_lines(files_infos[i].path);
+            }
+        }
     }
 
 
