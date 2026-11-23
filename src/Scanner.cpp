@@ -63,8 +63,11 @@ namespace scanner {
     }
 
     void concurrent_count_lines(std::vector<FileInfo>& files_infos) {
+        if(files_infos.empty()) return;;
+
         std::atomic<size_t> next_index{0};
-        unsigned int n = std::thread::hardware_concurrency();
+
+        unsigned int n = std::min<std::size_t>(std::max(1U, std::thread::hardware_concurrency()), files_infos.size());
         std::vector<std::thread> threads;
         threads.reserve(n);
 
@@ -78,12 +81,7 @@ namespace scanner {
     }
 
     std::size_t count_file_lines(const fs::path &file_path) {
-        const auto ext = file_path.extension().string();
-        if (std::find(excluded_extensions.begin(), excluded_extensions.end(), ext) != excluded_extensions.end()) {
-                return 0;
-        }
-
-        std::ifstream file(file_path);
+        std::ifstream file(file_path, std::ios::binary);
         if (!file.is_open()) {
             std::cerr << "Failed to open the file: " << file_path << '\n';
             return 0;
@@ -91,6 +89,7 @@ namespace scanner {
 
         std::size_t count = 0;
 
+        thread_local std::array<char, 1 << 16> buffer;
 
         while (file.read(buffer.data(), buffer.size()) || file.gcount() > 0) {
             for (std::streamsize i = 0; i < file.gcount(); i++) {
@@ -106,6 +105,11 @@ namespace scanner {
 
             if(i >= files_infos.size())
                 break;
+
+            if (std::find(excluded_extensions.begin(), excluded_extensions.end(),  files_infos[i].extension)
+                != excluded_extensions.end()) {
+                continue;
+            }
 
             if(files_infos[i].size > 0) {
                 files_infos[i].lines = count_file_lines(files_infos[i].path);

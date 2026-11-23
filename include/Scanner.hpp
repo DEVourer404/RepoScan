@@ -43,7 +43,7 @@ namespace scanner {
     void concurrent_count_lines(std::vector<FileInfo>& files_infos);
     void worker_task(std::vector<FileInfo>& files_infos, std::atomic<size_t>& next_index);
 
-    const std::vector<std::string> excluded_extensions = {
+    inline const std::vector<std::string> excluded_extensions = {
         ".exe", ".dll", ".so", ".dylib", ".bin",
         ".sys", ".drv", ".ocx", ".class", ".jar",
         ".war", ".ear", ".pyc", ".pyo",
@@ -72,9 +72,6 @@ namespace scanner {
         ".wasm", ".o", ".obj", ".a", ".lib",
         ".pdb", ".ilk", ".pch"
     };
-
-    inline thread_local std::array<char, 1 << 16> buffer{};
-
 }
 
 

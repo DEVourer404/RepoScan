@@ -13,7 +13,7 @@ namespace config {
         std::vector<std::string> excluded_directories;
     };
 
-    const std::vector<std::string> default_excluded_directories{".git", "build", ".idea", ".vscode", ".github", "cmake-build-debug", "cmake-build-release", "node_modules"};
+    inline const std::vector<std::string> default_excluded_directories{".git", "build", ".idea", ".vscode", ".github", "cmake-build-debug", "cmake-build-release", "node_modules"};
     //const std::vector<std::string> default_excluded_directories{};
 
     std::optional<Config> load_config(int argc, char* argv[]);
